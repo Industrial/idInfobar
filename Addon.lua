@@ -1,75 +1,38 @@
---[[----------------------------------------------------------------------------
-  Copyright (c) 2008, Tom Wieland
-  All rights reserved.
-
-  Redistribution and use in source and binary forms, with or without
-  modification, are permitted provided that the following conditions are met:
-
-  * Redistributions of source code must retain the above copyright notice,
-    this list of conditions and the following disclaimer.
-  * Redistributions in binary form must reproduce the above copyright notice,
-    this list of conditions and the following disclaimer in the documentation
-    and/or other materials provided with the distribution.
-  * Neither the name of idInfobar nor the names of its contributors may be used
-    to endorse or promote products derived from this software without specific
-    prior written permission.
-
-  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
-  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-  POSSIBILITY OF SUCH DAMAGE.
-------------------------------------------------------------------------------]]
-
 local _G = _G
 
 local TL, TC, TR = 'TOPLEFT', 'TOP', 'TOPRIGHT'
 local ML, MC, MR = 'LEFT', 'CENTER', 'RIGHT'
 local BL, BC, BR = 'BOTTOMLEFT', 'BOTTOM', 'BOTTOMRIGHT'
 
-local frame = CreateFrame('Button', 'idInfobarFrame', UIParent)
-local textleft = frame:CreateFontString()
-local textcenter = frame:CreateFontString()
-local textright = frame:CreateFontString()
+local addon = CreateFrame('Frame')
+addon.onupdate_refresh = 1
+addon.onupdate_time = addon.onupdate_refresh
+addon.inset = 5
+addon.padding = 5
 
-local fps = ''
-local mem = ''
-local lag = ''
-local exp = ''
-local loc = ''
-local money = ''
-local time = ''
-local onupdate_time = 1
-
-local update
-local update_xp
-local update_money
-local move_in
-local move_out
-local enable
-local onevent
-local onupdate
-
-function update ()
-	local x,y = GetPlayerMapPosition('player')
-	fps   = ('%.1ffps'):format(GetFramerate())
-	mem   = ('%.2fMiB'):format(gcinfo()/1024)
-	lag   = ('%sms'):format(select(3, GetNetStats()))
-	time  = date('%X')
-	loc   = ('%.1f,%.1f'):format(x*100, y*100)
-
-	textleft:SetText(('%s %s %s'):format(fps, mem, lag))
-	textcenter:SetText(('%s %s'):format(exp, money))
-	textright:SetText(('%s %s'):format(loc, time))
+function addon:get_fps ()
+	return ('%.1ffps'):format(GetFramerate())
 end
 
-function update_xp ()
+function addon:get_ram ()
+	return ('%.2fMiB'):format(gcinfo()/1024)
+end
+
+function addon:get_lag ()
+	return ('%sms'):format(select(3, GetNetStats()))
+end
+
+function addon:get_money ()
+	local copper = GetMoney() - GetCursorMoney() - GetPlayerTradeMoney() - GetSendMailMoney()
+	gold = math.floor(copper/10000)
+	copper = copper - gold*10000
+	silver = math.floor(copper/100)
+	copper = copper - silver*100
+
+	return ('%sg%ss%sc'):format(gold, silver, copper)
+end
+
+function addon:get_exp ()
 	local xp   = UnitXP('player')
 	local max  = UnitXPMax('player')
 	local left = max - xp
@@ -85,96 +48,119 @@ function update_xp ()
 		end
 	end
 
-	exp = out
+	return out
 end
 
-function update_money ()
-	local copper = GetMoney() - GetCursorMoney() - GetPlayerTradeMoney() - GetSendMailMoney()
-	gold = math.floor(copper/10000)
-	copper = copper - gold*10000
-	silver = math.floor(copper/100)
-	copper = copper - silver*100
-
-	money = ('%sg%ss%sc'):format(gold, silver, copper)
+function addon:get_loc ()
+	local x,y = GetPlayerMapPosition('player')
+	return ('%.1f,%.1f'):format(x*100, y*100)
 end
 
-function move_in ()
-	frame:ClearAllPoints()
-	frame:SetPoint(TL, UIParent, TL, 0, 0)
-	frame:SetPoint(TR, UIParent, TR, 0, 0)
+function addon:get_time ()
+	return date('%X')
 end
 
-function move_out ()
-	frame:ClearAllPoints()
-	frame:SetPoint(BL, UIParent, TL, 0, -1)
-	frame:SetPoint(BR, UIParent, TR, 0, -1)
+function addon:update ()
+	self.texts.left.fps:SetText(self:get_fps())
+	self.texts.left.ram:SetText(self:get_ram())
+	self.texts.left.lag:SetText(self:get_lag())
+	self.texts.center.money:SetText(self:get_money())
+	self.texts.center.exp:SetText(self:get_exp())
+	self.texts.right.loc:SetText(self:get_loc())
+	self.texts.right.time:SetText(self:get_time())
 end
 
-function onupdate (frame, elapsed)
-	onupdate_time = onupdate_time - elapsed
-	if onupdate_time <= 0 then
-		update()
-		onupdate_time = 1
-	end
-end
-
-function onevent (frame, event, ...)
-	if event == 'PLAYER_XP_UPDATE' then
-		update_xp()
-	elseif event == 'PLAYER_LEVEL_UP' then
-		update_xp()
-	elseif event == 'PLAYER_MONEY' then
-		update_money()
-	end
-end
-
-textleft:SetFont(STANDARD_TEXT_FONT, 12)
-textleft:SetTextColor(1, 1, 1)
-textcenter:SetFont(STANDARD_TEXT_FONT, 12)
-textcenter:SetTextColor(1, 1, 1)
-textright:SetFont(STANDARD_TEXT_FONT, 12)
-textright:SetTextColor(1, 1, 1)
-
-frame:SetBackdrop({
-	bgFile = 'Interface/Tooltips/UI-Tooltip-Background',
-	edgeFile = '',
-	tile = true,
-	tileSize = 16,
-	edgeSize = 0,
-	insets = {
-		left = 0,
-		right = 0,
-		top = 0,
-		bottom = 0
+function addon:PLAYER_LOGIN ()
+	local frame = CreateFrame('Frame', 'idInfobarFrame', UIParent)
+	local texts = {
+		['left'] = {},
+		['center'] = {},
+		['right'] = {},
 	}
-})
-frame:SetBackdropColor(0, 0, 0, 1)
+	local fps = frame:CreateFontString()
+	local ram = frame:CreateFontString()
+	local lag = frame:CreateFontString()
+	local money = frame:CreateFontString()
+	local exp = frame:CreateFontString()
+	local loc = frame:CreateFontString()
+	local time = frame:CreateFontString()
 
-frame:SetHeight(20)
-frame:SetScript('OnLeave', move_out)
-frame:SetScript('OnEnter', move_in)
+	fps:SetJustifyH('LEFT')
+	ram:SetJustifyH('LEFT')
+	lag:SetJustifyH('LEFT')
+	money:SetJustifyH('RIGHT')
+	exp:SetJustifyH('LEFT')
+	loc:SetJustifyH('RIGHT')
+	time:SetJustifyH('RIGHT')
 
-textleft:SetJustifyH('LEFT')
-textleft:SetJustifyV('CENTER')
-textleft:SetPoint(ML, frame, ML, 5, 0)
-textleft:SetPoint(MR, textcenter, ML)
+	texts.left.fps = fps
+	texts.left.ram = ram
+	texts.left.lag = lag
+	texts.center.money = money
+	texts.center.exp = exp
+	texts.right.loc = loc
+	texts.right.time = time
 
-textcenter:SetJustifyH('CENTER')
-textcenter:SetJustifyV('CENTER')
-textcenter:SetPoint(MC, frame, MC)
+	for k, v in pairs(texts) do
+		for l, w in pairs(v) do
+			w:SetFont(STANDARD_TEXT_FONT, 12)
+			w:SetTextColor(1, 1, 1)
+			w:SetJustifyV('CENTER')
+		end
+	end
 
-textright:SetJustifyH('RIGHT')
-textright:SetJustifyV('CENTER')
-textright:SetPoint(ML, textcenter, MR)
-textright:SetPoint(MR, frame, MR, -5, 0)
+	fps:SetPoint(ML, frame, ML, self.inset, 0)
+	ram:SetPoint(ML, fps, MR, self.padding, 0)
+	lag:SetPoint(ML, ram, MR, self.padding, 0)
 
-move_out()
-update_xp()
-update_money()
-update()
+	money:SetPoint(MR, frame, MC, -self.inset / 2, 0)
+	exp:SetPoint(ML, money, MR, self.inset, 0)
 
-frame:SetScript('OnEvent', onevent)
-frame:SetScript('OnUpdate', onupdate)
-frame:RegisterEvent('PLAYER_XP_UPDATE')
-frame:RegisterEvent('PLAYER_LEVEL_UP')
-frame:RegisterEvent('PLAYER_MONEY')
+	exp:SetPoint(MR, loc, ML, -self.padding, 0)
+	loc:SetPoint(MR, time, ML, -self.padding, 0)
+	time:SetPoint(MR, frame, MR, -self.inset, 0)
+
+	frame:SetBackdrop({
+		bgFile = 'Interface/Tooltips/UI-Tooltip-Background',
+		edgeFile = '',
+		tile = true,
+		tileSize = 16,
+		edgeSize = 0,
+		insets = {
+			left = 0,
+			right = 0,
+			top = 0,
+			bottom = 0
+		}
+	})
+	frame:SetBackdropColor(0, 0, 0, 1)
+
+	frame:SetHeight(20)
+
+	frame:SetPoint(TL, UIParent, TL)
+	frame:SetPoint(TR, UIParent, TR)
+
+	self.frame = frame
+	self.texts = texts
+
+	self:SetScript('OnUpdate', self.onupdate)
+end
+
+function addon:onevent (event, ...)
+	handler = addon[event]
+	if handler then
+		handler(addon, ...)
+	end
+end
+
+function addon:onupdate (elapsed)
+	self.onupdate_time = self.onupdate_time - elapsed
+	if self.onupdate_time <= 0 then
+		self:update()
+		self.onupdate_time = self.onupdate_refresh
+	end
+end
+
+addon:SetScript('OnEvent', addon.onevent)
+addon:RegisterEvent('PLAYER_LOGIN')
+
