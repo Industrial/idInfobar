@@ -10,6 +10,18 @@ addon.onupdate_time = addon.onupdate_refresh
 addon.inset = 5
 addon.padding = 5
 
+function addon.pop_in(frame)
+	frame:ClearAllPoints()
+	frame:SetPoint(TL, UIParent, TL)
+	frame:SetPoint(TR, UIParent, TR)
+end
+
+function addon.pop_out(frame)
+	frame:ClearAllPoints()
+	frame:SetPoint(BL, UIParent, TL, 0, -1)
+	frame:SetPoint(BR, UIParent, TR, 0, -1)
+end
+
 function addon:get_fps ()
 	return ('%.1ffps'):format(GetFramerate())
 end
@@ -71,7 +83,7 @@ function addon:update ()
 end
 
 function addon:PLAYER_LOGIN ()
-	local frame = CreateFrame('Frame', 'idInfobarFrame', UIParent)
+	local frame = CreateFrame('Button', 'idInfobarFrame', UIParent)
 	local texts = {
 		['left'] = {},
 		['center'] = {},
@@ -137,13 +149,15 @@ function addon:PLAYER_LOGIN ()
 
 	frame:SetHeight(20)
 
-	frame:SetPoint(TL, UIParent, TL)
-	frame:SetPoint(TR, UIParent, TR)
-
 	self.frame = frame
 	self.texts = texts
 
+	frame:SetScript('OnEnter', self.pop_in)
+	frame:SetScript('OnLeave', self.pop_out)
+
 	self:SetScript('OnUpdate', self.onupdate)
+
+	self.pop_out(frame)
 end
 
 function addon:onevent (event, ...)
