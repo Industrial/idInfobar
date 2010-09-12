@@ -1,3 +1,7 @@
 ## Interface: 30300
+## Title: idInfobar
+## Notes: Autohide bar at the top of the screen with various info.
+## Author: Industrial
+
 Addon.lua
 
